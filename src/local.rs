@@ -121,7 +121,20 @@ impl Local {
             })?;
 
         // Build the query to search for all mail in our maildir.
-        let all_mail_query = format!("path:\"{}/**\"", relative_mail_dir.to_str().unwrap());
+        // Special case: if the maildir is itself the notmuch database
+        // root, the relative path between them is empty. Naively
+        // formatting it would give us the query `path:"/**"`. Since
+        // notmuch 0.25, `/` opens a regex in path queries (see
+        // https://github.com/notmuch/notmuch/commit/11d47950), so
+        // that query fails with an "unmatched regex delimiter" error.
+        // The query `path:**` matches everything without triggering
+        // regex mode.
+        let relative_path_str = relative_mail_dir.to_str().unwrap();
+        let all_mail_query = if relative_path_str.is_empty() {
+            String::from("path:**")
+        } else {
+            format!("path:\"{}/**\"", relative_path_str)
+        };
 
         // Ensure the maildir contains the standard cur, new, and tmp dirs.
         let mail_cur_dir = canonical_mail_dir_path.join("cur");
