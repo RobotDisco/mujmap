@@ -141,7 +141,7 @@ impl HttpWrapper {
             .apply_authorization(self.agent.get(url))
             .call()
             .map_err(|e| e.into())
-            .map_err(|source| Error::ReadEmailBlob {source})?
+            .map_err(|source| Error::ReadEmailBlob { source })?
             .into_reader()
             // Limiting download size as advised by ureq's documentation:
             // https://docs.rs/ureq/latest/ureq/struct.Response.html#method.into_reader
@@ -153,13 +153,16 @@ impl HttpWrapper {
             .apply_authorization(self.agent.post(url))
             .send_string(body)
             .map_err(|e| e.into())
-            .map_err(|source| Error::Request {source})?;
+            .map_err(|source| Error::Request { source })?;
         if log_enabled!(log::Level::Trace) {
-            let json = post.into_string().map_err(|source| Error::Response {source})?;
+            let json = post
+                .into_string()
+                .map_err(|source| Error::Response { source })?;
             trace!("Post response: {json}");
-            serde_json::from_str(&json).map_err(|source| Error::DeserializeResponse {source})
+            serde_json::from_str(&json).map_err(|source| Error::DeserializeResponse { source })
         } else {
-            post.into_json().map_err(|source| Error::Response {source})
+            post.into_json()
+                .map_err(|source| Error::Response { source })
         }
     }
 
@@ -168,13 +171,16 @@ impl HttpWrapper {
             .apply_authorization(self.agent.post(url))
             .send_json(body)
             .map_err(|e| e.into())
-            .map_err(|source| Error::Request {source})?;
+            .map_err(|source| Error::Request { source })?;
         if log_enabled!(log::Level::Trace) {
-            let json = post.into_string().map_err(|source| Error::Response {source})?;
+            let json = post
+                .into_string()
+                .map_err(|source| Error::Response { source })?;
             trace!("Post response: {json}");
-            serde_json::from_str(&json).map_err(|source| Error::DeserializeResponse {source})
+            serde_json::from_str(&json).map_err(|source| Error::DeserializeResponse { source })
         } else {
-            post.into_json().map_err(|source| Error::Response {source})
+            post.into_json()
+                .map_err(|source| Error::Response { source })
         }
     }
 }
@@ -189,7 +195,9 @@ pub struct Remote {
 
 impl Remote {
     pub fn open(config: &Config) -> Result<Self> {
-        let password = config.password().map_err(|source| Error::GetPassword {source})?;
+        let password = config
+            .password()
+            .map_err(|source| Error::GetPassword { source })?;
 
         let remote = match (&config.fqdn, &config.session_url) {
             (Some(fqdn), _) => {
@@ -212,7 +220,7 @@ impl Remote {
 
         if remote.session.username != config.username {
             Err(Error::UsernameMismatch {
-                username: remote.session.username.clone()
+                username: remote.session.username.clone(),
             })?
         };
 
@@ -220,7 +228,8 @@ impl Remote {
     }
 
     fn open_host(fqdn: &str, username: &str, password: &str, timeout: u64) -> Result<Self> {
-        let resolver = Resolver::from_system_conf().map_err(|source| Error::ParseResolvConf {source})?;
+        let resolver =
+            Resolver::from_system_conf().map_err(|source| Error::ParseResolvConf { source })?;
         let mut address = format!("_jmap._tcp.{fqdn}");
         if !address.ends_with(".") {
             address.push('.');
@@ -260,7 +269,8 @@ impl Remote {
             Ok(r) => {
                 // Server returned success without authentication. Surprising, but valid.
                 let session_url = r.get_url().to_string();
-                let session: jmap::Session = r.into_json().map_err(|source| Error::Response {source})?;
+                let session: jmap::Session =
+                    r.into_json().map_err(|source| Error::Response { source })?;
                 Ok(Self {
                     http_wrapper: HttpWrapper::new(None, timeout),
                     session_url,
@@ -316,8 +326,12 @@ impl Remote {
                 let r = req
                     .call()
                     .map_err(|e| e.into())
-                    .map_err(|source| Error::OpenSession { session_url: session_url.into(), source })?;
-                let session: jmap::Session = r.into_json().map_err(|source| Error::Response {source})?;
+                    .map_err(|source| Error::OpenSession {
+                        session_url: session_url.into(),
+                        source,
+                    })?;
+                let session: jmap::Session =
+                    r.into_json().map_err(|source| Error::Response { source })?;
                 Ok(Self {
                     http_wrapper: HttpWrapper::new(authorization, timeout),
                     session_url: url.to_string(),
@@ -325,7 +339,10 @@ impl Remote {
                 })
             }
 
-            Err(e) => Err(e.into()).map_err(|source| Error::OpenSession { session_url: session_url.into(), source }),
+            Err(e) => Err(e.into()).map_err(|source| Error::OpenSession {
+                session_url: session_url.into(),
+                source,
+            }),
         }
     }
 
@@ -1150,7 +1167,7 @@ impl Remote {
         let import_response =
             expect_email_import(IMPORT_EMAIL_METHOD_ID, response.method_responses.remove(0))?;
         map_first_method_error_into_result(import_response.not_created)
-            .map_err(|source| Error::ImportEmail {source})?;
+            .map_err(|source| Error::ImportEmail { source })?;
         let imported_email_id = import_response
             .created
             .and_then(|x| x.into_values().map(|object| object.id).next())
@@ -1167,7 +1184,7 @@ impl Remote {
                 response.method_responses.remove(0),
             )?;
             map_first_method_error_into_result(set_email_submission_response.not_created)
-                .map_err(|source| Error::CreateEmailSubmission {source})?;
+                .map_err(|source| Error::CreateEmailSubmission { source })?;
 
             if response.method_responses.is_empty() {
                 return Err(Error::UnexpectedResponse);
@@ -1177,7 +1194,7 @@ impl Remote {
                 response.method_responses.remove(0),
             )?;
             map_first_method_error_into_result(set_email_response.not_created)
-                .map_err(|source| Error::UpdateSubmittedEmail {source})?;
+                .map_err(|source| Error::UpdateSubmittedEmail { source })?;
 
             Ok(())
         };
@@ -1220,7 +1237,7 @@ impl Remote {
 
         let set_response = expect_email_set(SET_METHOD_ID, response.method_responses.remove(0))?;
         map_first_method_error_into_result(set_response.not_destroyed)
-            .map_err(|source| Error::DestroyEmail {source})?;
+            .map_err(|source| Error::DestroyEmail { source })?;
 
         Ok(())
     }
@@ -1249,7 +1266,7 @@ impl Remote {
                     .get_session(&self.session_url)
                     .map_err(|source| Error::UpdateSession {
                         session_url: self.session_url.clone(),
-                        source
+                        source,
                     })?;
             self.session = session;
             trace!("new session state is {}", self.session.state);
