@@ -154,7 +154,7 @@ pub struct MailAccountCapabilities {
 
 #[cfg(test)]
 mod tests {
-    use super::Session;
+    use super::{Id, Session};
 
     #[test]
     fn session_deserializes_without_optional_core_capabilities() {
@@ -207,7 +207,7 @@ mod tests {
         assert!(
             session
                 .accounts
-                .get("u1")
+                .get(&Id("u1".into()))
                 .expect("account should exist")
                 .account_capabilities
                 .core
