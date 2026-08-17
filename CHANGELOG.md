@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Leading and trailing whitespace (including newlines) is now removed from the
   password returned by `password_command`. (#41)
 
+### Fixed
+- Fixed all-mail query when the maildir is the notmuch database root (e.g.
+  when `.notmuch` lives inside the maildir). The previous query `path:"/**"`
+  was treated as a regex by notmuch >=0.25; mujmap now uses `path:**` in this
+  case.
+
 ## [0.2.0] - 2022-06-06
 ### Added
 - mujmap can now send emails! See the readme for details.
