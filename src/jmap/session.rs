@@ -39,8 +39,8 @@ pub struct Session {
 
 #[derive(Debug, Deserialize)]
 pub struct PrimaryAccounts {
-    #[serde(rename = "urn:ietf:params:jmap:core")]
-    pub core: Id,
+    #[serde(default, rename = "urn:ietf:params:jmap:core")]
+    pub core: Option<Id>,
     #[serde(rename = "urn:ietf:params:jmap:mail")]
     pub mail: Id,
 }
@@ -104,8 +104,8 @@ pub struct Account {
 
 #[derive(Debug, Deserialize)]
 pub struct AccountCapabilities {
-    #[serde(rename = "urn:ietf:params:jmap:core")]
-    pub core: EmptyCapabilities,
+    #[serde(default, rename = "urn:ietf:params:jmap:core")]
+    pub core: Option<EmptyCapabilities>,
     #[serde(rename = "urn:ietf:params:jmap:mail")]
     pub mail: MailAccountCapabilities,
 }
@@ -150,4 +150,68 @@ pub struct MailAccountCapabilities {
     /// for creating a child of an existing Mailbox is given by the myRights property on that
     /// Mailbox.)
     pub may_create_top_level_mailbox: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Id, Session};
+
+    #[test]
+    fn session_deserializes_without_optional_core_capabilities() {
+        let session = serde_json::from_str::<Session>(
+            r#"{
+                "capabilities": {
+                    "urn:ietf:params:jmap:core": {
+                        "maxSizeUpload": 50000000,
+                        "maxConcurrentUpload": 4,
+                        "maxSizeRequest": 10000000,
+                        "maxConcurrentRequests": 4,
+                        "maxCallsInRequest": 16,
+                        "maxObjectsInGet": 500,
+                        "maxObjectsInSet": 500,
+                        "collationAlgorithms": ["i;unicode-casemap"]
+                    },
+                    "urn:ietf:params:jmap:mail": {}
+                },
+                "accounts": {
+                    "u1": {
+                        "name": "user@example.com",
+                        "isPersonal": true,
+                        "isReadOnly": false,
+                        "accountCapabilities": {
+                            "urn:ietf:params:jmap:mail": {
+                                "maxMailboxesPerEmail": null,
+                                "maxMailboxDepth": null,
+                                "maxSizeMailboxName": 255,
+                                "maxSizeAttachmentsPerEmail": 50000000,
+                                "emailQuerySortOptions": ["receivedAt"],
+                                "mayCreateTopLevelMailbox": true
+                            }
+                        }
+                    }
+                },
+                "primaryAccounts": {
+                    "urn:ietf:params:jmap:mail": "u1"
+                },
+                "username": "user@example.com",
+                "apiUrl": "https://example.test/jmap/api",
+                "downloadUrl": "https://example.test/jmap/download/{accountId}/{blobId}/{name}?accept={type}",
+                "uploadUrl": "https://example.test/jmap/upload/{accountId}",
+                "eventSourceUrl": "https://example.test/jmap/eventsource/?types={types}&closeafter={closeafter}&ping={ping}",
+                "state": "S1234"
+            }"#,
+        )
+        .expect("session JSON should deserialize");
+
+        assert!(session.primary_accounts.core.is_none());
+        assert!(
+            session
+                .accounts
+                .get(&Id("u1".into()))
+                .expect("account should exist")
+                .account_capabilities
+                .core
+                .is_none()
+        );
+    }
 }
